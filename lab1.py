@@ -1,13 +1,11 @@
 """ CS4277/CS5477 Lab 1: Fun with Homographies.
 See accompanying Jupyter notebook (lab1.ipynb) for instructions.
-
-Name: <Your Name here>
-Email: <username>@u.nus.edu
-Student ID: A0123456X
-
-Name2: <Name of second member, if any>
-Email2: <username>@u.nus.edu
-Student ID: A0123456X
+Name: Chew Kin Whye
+Email: e0200920@u.nus.edu
+Student ID: A0171350R
+Name2: Kok Jia Xuan
+Email2: e0203403@u.nus.edu
+Student ID: A0173833B
 """
 
 import cv2
@@ -27,10 +25,8 @@ _COLOR_BLUE = (0, 0, 255)
 """
 def load_image(im_path):
     """Loads image and converts to RGB format
-
     Args:
         im_path (str): Path to image
-
     Returns:
         im (np.ndarray): Loaded image (H, W, 3), of type np.uint8.
     """
@@ -41,7 +37,6 @@ def load_image(im_path):
 
 def draw_matches(im1, im2, im1_pts, im2_pts, inlier_mask=None):
     """Generates a image line correspondences
-
     Args:
         im1 (np.ndarray): Image 1
         im2 (np.ndarray): Image 2
@@ -50,9 +45,7 @@ def draw_matches(im1, im2, im1_pts, im2_pts, inlier_mask=None):
           image 2
         inlier_mask (np.ndarray): If provided, inlier correspondences marked
           with True will be drawn in green, others will be in red.
-
     Returns:
-
     """
     height1, width1 = im1.shape[:2]
     height2, width2 = im2.shape[:2]
@@ -90,12 +83,10 @@ def draw_matches(im1, im2, im1_pts, im2_pts, inlier_mask=None):
 
 def matches2pairs(matches, kp1, kp2):
     """Converts OpenCV's DMatch to point pairs
-
     Args:
         matches (list): List of DMatches from OpenCV's matcher
         kp1 (list): List of cv2.KeyPoint from OpenCV's detector for image 1 (query)
         kp2 (list): List of cv2.KeyPoint from OpenCV's detector for image 2 (train)
-
     Returns:
         pts1, pts2: Nx2 array containing corresponding coordinates for both images
     """
@@ -132,17 +123,13 @@ def to_homogenous(input_pts):
 
 def transform_homography(src, h_matrix):
     """Performs the perspective transformation of coordinates
-
     Args:
         src (np.ndarray): Coordinates of points to transform (N,2)
         h_matrix (np.ndarray): Homography matrix (3,3)
-
     Returns:
         transformed (np.ndarray): Transformed coordinates (N,2)
-
     Prohibited functions:
         cv2.perspectiveTransform()
-
     """
     src = to_homogenous(src)
     transformed = h_matrix.dot(src.T).T
@@ -193,15 +180,12 @@ def compute_homography(src1, dst1):
     """Calculates the perspective transform from at least 4 points of
     corresponding points using the **Normalized** Direct Linear Transformation
     method.
-
     Args:
         src (np.ndarray): Coordinates of points in the first image (N,2)
         dst (np.ndarray): Corresponding coordinates of points in the second
                           image (N,2)
-
     Returns:
         h_matrix (np.ndarray): The required 3x3 transformation matrix H.
-
     Prohibited functions:
         cv2.findHomography(), cv2.getPerspectiveTransform(),
         np.linalg.solve(), np.linalg.lstsq()
@@ -234,7 +218,6 @@ def compute_homography(src1, dst1):
 def warp_image(template, original, homo):
     """Applies perspective transformation to source image to warp it onto the
     destination (background) image
-
     Args:
         src (np.ndarray): Source image to be warped
         dst (np.ndarray): Background image to warp template onto
@@ -242,10 +225,8 @@ def warp_image(template, original, homo):
                                  x_{dst} = h_matrix * x_{src},
                                where x_{src}, x_{dst} are the homogeneous
                                coordinates in I_{src} and I_{dst} respectively
-
     Returns:
         dst (np.ndarray): Source image warped onto destination image
-
     Prohibited functions:
         cv2.warpPerspective()
     """
@@ -272,21 +253,17 @@ def warp_image(template, original, homo):
 
 def warp_images_all(images, h_matrices):
     """Warps all images onto a black canvas.
-
     Note: We implemented this function for you, but it'll be useful to note
      the necessary steps
      1. Compute the bounds of each of the images (which can be negative)
      2. Computes the necessary size of the canvas
      3. Adjust all the homography matrices to the canvas bounds
      4. Warp images
-
     Requires:
         transform_homography(), warp_image()
-
     Args:
         images (List[np.ndarray]): List of images to warp
         h_matrices (List[np.ndarray]): List of homography matrices
-
     Returns:
         stitched (np.ndarray): Stitched images
     """
@@ -328,13 +305,11 @@ def warp_images_all(images, h_matrices):
 def compute_homography_error(src, dst, homography):
     """Compute the squared bidirectional pixel reprojection error for
     provided correspondences
-
     Args:
         src (np.ndarray): Coordinates of points in the first image (N,2)
         dst (np.ndarray): Corresponding coordinates of points in the second
                           image (N,2)
         homography (np.ndarray): Homography matrix that transforms src to dst.
-
     Returns:
         err (np.ndarray): Array of size (N, ) containing the error d for each
         correspondence, computed as:
@@ -358,7 +333,6 @@ def compute_homography_ransac(src, dst, thresh=16.0, num_tries=200):
     """Calculates the perspective transform from at least 4 points of
     corresponding points in a robust manner using RANSAC. After RANSAC, all the
     inlier correspondences will be used to re-estimate the homography matrix.
-
     Args:
         src (np.ndarray): Coordinates of points in the first image (N,2)
         dst (np.ndarray): Corresponding coordinates of points in the second
@@ -369,12 +343,10 @@ def compute_homography_ransac(src, dst, thresh=16.0, num_tries=200):
             d(x,x') = ||x - inv(H)x'||^2 +  ||x' - Hx||^2,
           where ||a|| denotes the l2 norm (euclidean distance) of vector a.
         num_tries (int): Number of trials for RANSAC
-
     Returns:
         h_matrix (np.ndarray): The required 3x3 transformation matrix H.
         mask (np.ndarraay): Output mask with dtype np.bool where 1 indicates
           inliers
-
     Prohibited functions:
         cv2.findHomography()
     """
@@ -424,13 +396,11 @@ def compute_homography_ransac(src, dst, thresh=16.0, num_tries=200):
 # Part 4
 def concatenate_homographies(pairwise_h_matrices, ref):
     """Transforms pairwise relative transformations to absolute transformations.
-
     Args:
         pairwise_h_matrices (list): List of N-1 pairwise homographies, the i'th
           matrix maps points in the i'th image to the (i+1)'th image, e.g..
           x_1 = H[0] * x_0
         ref (int): Reference image to warp all images towards.
-
     Returns:
         abs_h_matrices (list): List of N homographies. abs_H[i] warps points
            in the i'th image to the reference image. abs_H[ref] should be the
@@ -447,16 +417,15 @@ def concatenate_homographies(pairwise_h_matrices, ref):
     # abs_h_matrices.append(np.linalg.inv(pairwise_h_matrices[1]).dot(np.linalg.inv(pairwise_h_matrices[2])))
     for i in range(len(pairwise_h_matrices) + 1):
         to_add = np.identity(3)
-        if i == ref - 1:
+        if i == ref:
             abs_h_matrices.append(np.identity(3))
-        if i < ref - 1:
-            for ii in range(i, ref-1):
+        if i < ref:
+            for ii in range(i, ref):
                 to_add = pairwise_h_matrices[ii].dot(to_add)
             abs_h_matrices.append(to_add)
-        if i > ref - 1:
-            for ii in range(i, ref - 1, -1):
+        if i > ref:
+            for ii in range(i-1, ref - 1, -1):
                 to_add = np.linalg.inv(pairwise_h_matrices[ii-1]).dot(to_add)
             abs_h_matrices.append(to_add)
 
     return abs_h_matrices
-
