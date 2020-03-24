@@ -1,9 +1,12 @@
 """ CS4277/CS5477 Lab 2: Camera Calibration.
 See accompanying Jupyter notebook (lab2.ipynb) for instructions.
 
-Name: <Your Name here>
-Email: <username>@u.nus.edu
-NUSNET ID: e1234567
+Name: Chew Kin Whye
+Email: e0200920@u.nus.edu
+Student ID: A0171350R
+Name2: Kok Jia Xuan
+Email2: e0203403@u.nus.edu
+Student ID: A0173833B
 """
 
 
@@ -92,51 +95,6 @@ def matrix2vector(R):
     return S
 
 
-
-
-
-"""Functions to be implemented
-"""
-
-def init_param_given(pts_model, pts_2d):
-    """ Estimate the intrisics and extrinsics of cameras
-
-    Args:
-        pts_model (np.ndarray): Coordinates of points in 3D (2, N)
-        pts_2d (list): Coordinates of points in 2D, the list includes 2D coordinates in three views 3 * (2, N)
-
-    Returns:
-        R_all (list): a list including three rotation matrix
-        T_all (list): a list including three translation vector
-        K (np.ndarray): a list includes five intrinsic parameters (5,)
-
-    Prohibited functions:
-        cv2.calibrateCamera()
-
-    """
-    R_all = []
-    T_all = []
-    K = None
-    for i in range(len(pts_2d)):
-        pts_src = pts_model.T
-        pts_dst = pts_2d[i].T
-        zeros = np.zeros([len(pts_src), 1])
-        pts_src = np.append(pts_src, zeros, axis=1)
-        """ YOUR CODE STARTS HERE """
-        objp = np.zeros((6 * 7, 3), np.float32)
-        objp[:, :2] = np.mgrid[0:7, 0:6].T.reshape(-1, 2)
-        objpoints = []
-        objpoints.append(objp)
-        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, pts_dst, (640, 480), None, None)
-
-        # ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(pts_src, pts_dst, (640, 480), None, None)
-        R_all.append(rvecs)
-        T_all.append(tvecs)
-        """ YOUR CODE ENDS HERE """
-
-    return R_all, T_all, K
-
-
 def compute_a(col_1_h, col_2_h):
     a = np.array([col_2_h[0]*col_1_h[0],
                   col_2_h[0]*col_1_h[1] + col_2_h[1]*col_1_h[0],
@@ -169,7 +127,7 @@ def init_param(pts_model, pts_2d):
     for i in range(len(pts_2d)):
         pts_src = pts_model.T
         pts_dst = pts_2d[i].T
-        image_h, mask = cv2.findHomography(pts_src, pts_dst)
+        image_h, _ = cv2.findHomography(pts_src, pts_dst)
         col_1_h = image_h[:, 0]
         col_2_h = image_h[:, 1]
         a_1 = compute_a(col_1_h, col_2_h)
@@ -184,6 +142,7 @@ def init_param(pts_model, pts_2d):
     B = np.array([[b[0], b[1], b[2]],
                   [b[1], b[3], b[4]],
                   [b[2], b[4], b[5]]])
+
     v_0 = (B[0][1] * B[0][2] - B[0][0] * B[1][2]) / (B[0][0] * B[1][1] - B[0][1] * B[0][1])
     scale = B[2][2] - (B[0][2] * B[0][2] + v_0 * (B[0][1] * B[0][2] - B[0][0] * B[1][2])) / B[0][0]
     alpha = math.sqrt(scale / B[0][0])
@@ -196,25 +155,22 @@ def init_param(pts_model, pts_2d):
                   [0, 0, 1]])
     K_inv = np.linalg.inv(K)
     K_list = [alpha, gamma, u_0, beta, v_0]
-    R_all = []
-    T_all = []
+
     for i in range(len(pts_2d)):
         pts_src = pts_model.T
         pts_dst = pts_2d[i].T
-        image_h, mask = cv2.findHomography(pts_src, pts_dst)
+        image_h, _ = cv2.findHomography(pts_src, pts_dst)
         lam = 1/np.linalg.norm(np.matmul(K_inv, image_h[:, 0]))
         r1 = lam*np.matmul(K_inv, image_h[:, 0])
         r2 = lam*np.matmul(K_inv, image_h[:, 1])
         r3 = np.cross(r1, r2)
         t = lam*np.matmul(K_inv, image_h[:, 2])
-        R = []
-        R.append(r1)
-        R.append(r2)
-        R.append(r3)
+        R = [r1, r2, r3]
         R = np.array(R).T
         R = convt2rotation(R)
         R_all.append(R)
         T_all.append(t)
+
     """ YOUR CODE ENDS HERE """
     return R_all, T_all, K_list
 
@@ -223,6 +179,8 @@ def distortion(point, k):
     r_2 = pow(point[0], 2) + pow(point[1], 2)
     r_4 = pow(r_2, 2)
     r_6 = pow(r_2, 3)
+    # r_4 = pow(point[0], 4) + pow(point[1], 4)
+    # r_6 = pow(point[0], 6) + pow(point[1], 6)
     x_r = (1 + k[0] * r_2 + k[1] * r_4 + k[4] * r_6) * point
 
     d_x_0 = 2 * k[2] * point[0] * point[1] + k[3] * (r_2 + 2 * point[0] * point[0])
@@ -246,8 +204,6 @@ def error_fun(param, pts_model, pts_2d):
         error : The reprojection error of all points in all three views
 
     """
-
-
     K = param[0:5]
     A = np.array([K[0], K[1], K[2], 0, K[3], K[4], 0, 0, 1]).reshape([3, 3])
     k = param[5:10]
@@ -274,10 +230,9 @@ def error_fun(param, pts_model, pts_2d):
     points_d = np.dot(A, np.concatenate([points_d, np.ones([1, points_d.shape[1]])], axis=0))
     points_d = points_d[0:2] / points_d[2:3]
     """ YOUR CODE ENDS HERE """
-    error = np.sum(np.square(points_2d - points_d), axis= 0)
+    error = np.sum(np.square(points_2d - points_d), axis=0)
 
     return error
-
 
 
 def visualize_distorted(param, pts_model, pts_2d):
@@ -313,9 +268,8 @@ def visualize_distorted(param, pts_model, pts_2d):
         for point in points_ud:
             points_d.append(distortion(point, k))
         points_d = np.asarray(points_d).T
-        """ YOUR CODE ENDS HERE """
-
         points_d = np.dot(A, np.concatenate([points_d, np.ones([1, points_d.shape[1]])], axis=0))
+        """ YOUR CODE ENDS HERE """
         points_d = points_d[0:2] / points_d[2:3]
         points_2d = pts_2d[i]
         img = cv2.imread('./zhang_data/CalibIm{}.tif'.format(i + 1))
