@@ -132,46 +132,6 @@ def calc_cosine_angle(u1, u2, f):
     return cosine_angle
 
 
-def find_s_values(s_1, points2d, points3d, f):
-    s_values = [s_1]
-    for i in range(1, 5):
-        s_2, s_3 = sym.symbols('x1, x2')
-        h_eqn = sym.Eq(s_1 ** 2 + s_2 ** 2 - 2 * s_1 * s_2 * calc_cosine_angle(points2d[0], points2d[i * 2], f),
-                       calc_squared_distance(points3d[0], points3d[i * 2]))
-        g_eqn = sym.Eq(s_1 ** 2 + s_3 ** 2 - 2 * s_1 * s_3 * calc_cosine_angle(points2d[0], points2d[i * 2 + 1], f),
-                       calc_squared_distance(points3d[0], points3d[i * 2 + 1]))
-
-        soln_s_2 = list(sym.nonlinsolve([h_eqn], [s_2]))
-        soln_s_3 = list(sym.nonlinsolve([g_eqn], [s_3]))
-        s_2_opt = 0
-        s_3_opt = 0
-        min_error = 1000000
-        for i in range(len(soln_s_2)):
-            for ii in range(len(soln_s_3)):
-                s_2 = soln_s_2[i][0]
-                s_3 = soln_s_3[ii][0]
-                error = s_2 ** 2 + s_3 ** 2 - 2 * s_2 * s_3 * calc_cosine_angle(points2d[1], points2d[2], f) - \
-                        calc_squared_distance(points3d[1], points3d[2])
-                error = abs(error)
-                if error < min_error:
-                    min_error = error
-                    s_2_opt = s_2
-                    s_3_opt = s_3
-        s_values.append(s_2_opt)
-        s_values.append(s_3_opt)
-    s_1 = s_values[0]
-    s_2 = s_values[1]
-    s_10 = sym.symbols('x1')
-
-    h_eqn = sym.Eq(s_1 ** 2 + s_10 ** 2 - 2 * s_1 * s_10 * calc_cosine_angle(points2d[0], points2d[9], f),
-                   calc_squared_distance(points3d[0], points3d[0]))
-    g_eqn = sym.Eq(s_2 ** 2 + s_10 ** 2 - 2 * s_2 * s_10 * calc_cosine_angle(points2d[1], points2d[9], f),
-                   calc_squared_distance(points3d[1], points3d[9]))
-    soln_s_10 = list(sym.nonlinsolve([h_eqn, g_eqn], [s_10]))
-    s_values.append(complex(soln_s_10[0][0]).real)
-    return s_values
-
-
 def to_homo_2d(points2d):
     points2d_ones = np.ones((10, 1, 1))
     points2d_homo = np.concatenate((points2d, points2d_ones), axis=2)
@@ -213,54 +173,6 @@ def calc_s(choice, points2d, points3d, f):
     return s
 
 
-def calc_s_opt(points2d, points3d, f):
-
-    A = []
-    B = []
-    for i in range(10):
-        B.append([])
-    counter = 0
-    for i in range(0, 10):
-        for ii in range(i+1, 10):
-            for iii in range(ii+1, 10):
-
-                for check_index in range(10):
-                    if i == check_index or ii == check_index or iii == check_index:
-                        B[check_index].append(counter)
-
-                p1 = points3d[i]
-                q1 = points2d[i]
-                p2 = points3d[ii]
-                q2 = points2d[ii]
-                p3 = points3d[iii]
-                q3 = points2d[iii]
-                d12 = calc_squared_distance(p1, p2)
-                d23 = calc_squared_distance(p2, p3)
-                d13 = calc_squared_distance(p1, p3)
-                cos_theta_12 = calc_cosine_angle(q1, q2, f)
-                cos_theta_23 = calc_cosine_angle(q2, q3, f)
-                cos_theta_13 = calc_cosine_angle(q1, q3, f)
-                x1, x2, x3 = sym.symbols('x1, x2, x3')
-                a = extract_coeff(x1, x2, x3, cos_theta_12, cos_theta_23, cos_theta_13, d12, d23, d13)
-                A.append(list(a))
-                counter += 1
-    print(np.asarray(A).shape)
-    print(np.asarray(B).shape)
-
-    s = []
-    print(B[1])
-    for i in range(10):
-        # pick sub array
-        sub_array = [A[index] for index in B[i]]
-        sub_array = np.asarray(sub_array).astype(np.float32)
-        _, _, vh = np.linalg.svd(sub_array, full_matrices=True)
-        t = vh[-1]
-        s_value = pow(((t[1] / t[0] + t[2] / t[1] + t[3] / t[2] + t[4] / t[3]) / 4), 0.5)
-        print(t[1]/t[0] - t[2]/t[1] + t[3]/t[2] - t[4]/t[3])
-        s.append(s_value)
-    return s
-
-
 def pnp_algo(K, points2d_og, points3d_og):
     points2d = np.ndarray.copy(points2d_og)
     points3d = np.ndarray.copy(points3d_og)
@@ -283,9 +195,9 @@ def pnp_algo(K, points2d_og, points3d_og):
         points2d[i][0][0] -= K[0][2]
         points2d[i][0][1] -= K[1][2]
 
-
-    # for choice in range(0, 10):
-    s_values = calc_s_opt(points2d, points3d, f)
+    s_values = []
+    for choice in range(0, 10):
+        s_values.append(calc_s(choice, points2d, points3d, f))
 
     # s_values = find_s_values(s_1, points2d, points3d, f)
     # print(s_values)
