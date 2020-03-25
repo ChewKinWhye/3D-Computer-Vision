@@ -1,8 +1,18 @@
+"""
+Name: Chew Kin Whye
+Email: e0200920@u.nus.edu
+Student ID: A0171350R
+
+Name2: Kok Jia Xuan
+Email2: e0203403@u.nus.edu
+Student ID: A0173833B
+"""
+
 import numpy as np
 import cv2
 from sympy.polys import subresultants_qq_zz
 import sympy as sym
-import math
+
 
 """Helper functions: You should not have to touch the following functions.
 """
@@ -77,6 +87,7 @@ def reconstruct_3d(X, K, points2d):
     points3d_c = np.hstack(points3d_c)
     return points3d_c
 
+
 def visualize(r, t, points3d, points2d, K):
     """
     Visualize reprojections of all 3d points in the image and compare with ground truth
@@ -88,7 +99,6 @@ def visualize(r, t, points3d, points2d, K):
         points3d:  10x2 array containing ground truth 2d coordinates of points in the image space
     """
     scale = 0.2
-    print("A")
     img = cv2.imread('data/img_id4_ud.JPG')
     dim = (int(img.shape[1]*scale), int(img.shape[0]*scale))
     img = cv2.resize(img, dim)
@@ -96,14 +106,11 @@ def visualize(r, t, points3d, points2d, K):
     points3d_homo = np.hstack([points3d, np.ones((points3d.shape[0], 1))])
     points2d_re = np.dot(K, np.dot(trans, points3d_homo.T))
     points2d_re = np.transpose(points2d_re[:2, :]/points2d_re[2:3, :])
-    print("B")
 
     for j in range(points2d.shape[0]):
         cv2.circle(img, (int(points2d[j, 0]*scale), int(points2d[j, 1]*scale)), 3,  (0, 0, 255))
         cv2.circle(img, (int(points2d_re[j, 0]*scale), int(points2d_re[j, 1]*scale)), 4,  (255, 0, 0))
-    print("C")
     cv2.imshow('img', img)
-    print("D")
 
     cv2.waitKey(0)
 
@@ -171,7 +178,92 @@ def to_homo_2d(points2d):
     return points2d_homo
 
 
-def pnp_algo(K, points2d, points3d):
+def calc_s(choice, points2d, points3d, f):
+    p1 = points3d[choice]
+    q1 = points2d[choice]
+    A = []
+    counter = 0
+    # Pick 3 points, with choice included
+    for i in range(0, len(points3d)):
+        if i == choice:
+            continue
+        for ii in range(i, len(points3d)):
+            if ii == i or ii == choice:
+                continue
+            p2 = points3d[i]
+            p3 = points3d[ii]
+            q2 = points2d[i]
+            q3 = points2d[ii]
+
+            d12 = calc_squared_distance(p1, p2)
+            d23 = calc_squared_distance(p2, p3)
+            d13 = calc_squared_distance(p1, p3)
+
+            cos_theta_12 = calc_cosine_angle(q1, q2, f)
+            cos_theta_23 = calc_cosine_angle(q2, q3, f)
+            cos_theta_13 = calc_cosine_angle(q1, q3, f)
+            x1, x2, x3 = sym.symbols('x1, x2, x3')
+            a = extract_coeff(x1, x2, x3, cos_theta_12, cos_theta_23, cos_theta_13, d12, d23, d13)
+            A.append(list(a))
+            counter += 1
+    A = np.asarray(A).astype(np.float32)
+    u, s, vh = np.linalg.svd(A, full_matrices=True)
+    t = vh[-1]
+    s = pow(((t[1] / t[0] + t[2] / t[1] + t[3] / t[2] + t[4] / t[3]) / 4), 0.5)
+    return s
+
+
+def calc_s_opt(points2d, points3d, f):
+
+    A = []
+    B = []
+    for i in range(10):
+        B.append([])
+    counter = 0
+    for i in range(0, 10):
+        for ii in range(i+1, 10):
+            for iii in range(ii+1, 10):
+
+                for check_index in range(10):
+                    if i == check_index or ii == check_index or iii == check_index:
+                        B[check_index].append(counter)
+
+                p1 = points3d[i]
+                q1 = points2d[i]
+                p2 = points3d[ii]
+                q2 = points2d[ii]
+                p3 = points3d[iii]
+                q3 = points2d[iii]
+                d12 = calc_squared_distance(p1, p2)
+                d23 = calc_squared_distance(p2, p3)
+                d13 = calc_squared_distance(p1, p3)
+                cos_theta_12 = calc_cosine_angle(q1, q2, f)
+                cos_theta_23 = calc_cosine_angle(q2, q3, f)
+                cos_theta_13 = calc_cosine_angle(q1, q3, f)
+                x1, x2, x3 = sym.symbols('x1, x2, x3')
+                a = extract_coeff(x1, x2, x3, cos_theta_12, cos_theta_23, cos_theta_13, d12, d23, d13)
+                A.append(list(a))
+                counter += 1
+    print(np.asarray(A).shape)
+    print(np.asarray(B).shape)
+
+    s = []
+    print(B[1])
+    for i in range(10):
+        # pick sub array
+        sub_array = [A[index] for index in B[i]]
+        sub_array = np.asarray(sub_array).astype(np.float32)
+        _, _, vh = np.linalg.svd(sub_array, full_matrices=True)
+        t = vh[-1]
+        s_value = pow(((t[1] / t[0] + t[2] / t[1] + t[3] / t[2] + t[4] / t[3]) / 4), 0.5)
+        print(t[1]/t[0] - t[2]/t[1] + t[3]/t[2] - t[4]/t[3])
+        s.append(s_value)
+    return s
+
+
+def pnp_algo(K, points2d_og, points3d_og):
+    points2d = np.ndarray.copy(points2d_og)
+    points3d = np.ndarray.copy(points3d_og)
     """
     Estimate the rotation and translation of camera by using pnp algorithm
 
@@ -190,37 +282,13 @@ def pnp_algo(K, points2d, points3d):
     for i in range(len(points2d)):
         points2d[i][0][0] -= K[0][2]
         points2d[i][0][1] -= K[1][2]
-    p1 = points3d[0]
-    q1 = points2d[0]
-    A = []
-    counter = 0
-    # Pick 3 points, with p1 included
-    for i in range(1, len(points3d)):
-        for ii in range(i+1, len(points3d)):
-            p2 = points3d[i]
-            p3 = points3d[ii]
-            q2 = points2d[i]
-            q3 = points2d[ii]
 
-            d12 = calc_squared_distance(p1, p2)
-            d23 = calc_squared_distance(p2, p3)
-            d13 = calc_squared_distance(p1, p3)
 
-            cos_theta_12 = calc_cosine_angle(q1, q2, f)
-            cos_theta_23 = calc_cosine_angle(q2, q3, f)
-            cos_theta_13 = calc_cosine_angle(q1, q3, f)
-            x1, x2, x3 = sym.symbols('x1, x2, x3')
-            a = extract_coeff(x1, x2, x3, cos_theta_12, cos_theta_23, cos_theta_13, d12, d23, d13)
-            A.append(list(a))
-            counter += 1
+    # for choice in range(0, 10):
+    s_values = calc_s_opt(points2d, points3d, f)
 
-    A = np.asarray(A).astype(np.float32)
-    u, s, vh = np.linalg.svd(A, full_matrices=True)
-    t = vh[-1]
-    s_1 = pow(((t[1] / t[0] + t[2] / t[1] + t[3] / t[2] + t[4] / t[3]) / 4), 0.5)
-
-    s_values = find_s_values(s_1, points2d, points3d, f)
-    print(s_values)
+    # s_values = find_s_values(s_1, points2d, points3d, f)
+    # print(s_values)
 
     for i in range(len(points2d)):
         points2d[i][0][0] += K[0][2]
